@@ -40,8 +40,8 @@ PRIVATE_KEY='cli-node-private-key'
 
 Grant execute permission and run the script
 ```bash
-chmod +x scripts/light-node-runner.sh 
-scripts/light-node-runner.sh
+chmod +x scripts/*
+scripts/runner.sh
 ```
 
 ## Logging and Monitoring

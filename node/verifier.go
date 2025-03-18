@@ -160,18 +160,22 @@ func CollectSampleAndVerify() {
 		// Proceed with this tree
 		sample := utils.RandomElement[string](tree.Leaves)
 
+		// Track if verification was successful
+		verificationSuccessful := false
+
 		proof, err := proveProof(tree.Leaves, sample)
 		if err != nil {
 			log.Printf("failed to prove sample for tree %s: %v", treeId, err)
+			// Continue to the next tree if proving fails
 			continue
 		}
 
 		receipt, rootHash, err := verifyProofs(tree.Leaves, *proof)
 		if err != nil {
 			log.Printf("failed to verify sample for tree %s: %v", treeId, err)
+			// Continue to the next tree if verification fails
 			continue
 		}
-
 		if receipt != nil {
 			walletAddress, err := utils.GetWalletAddress()
 			if err != nil {
@@ -189,13 +193,14 @@ func CollectSampleAndVerify() {
 			err = SubmitVerifiedProof(*walletAddress, *signature, *proof, *receipt, timestamp)
 			if err != nil {
 				log.Printf("Failed to submit verified proof: %v", err)
+				// Continue to the next tree if submission fails
+				continue
 			} else {
 				log.Printf("Successfully submitted verified proof for tree %s", treeId)
+				verificationSuccessful = true
 			}
-		}
 
-		// Update the tree state with the verified root
-		if rootHash != nil {
+			// Update the tree state with the verified root
 			stateMutex.Lock()
 			if state, exists := treeStates[treeId]; exists {
 				if state.LastRoot != *rootHash {
@@ -204,15 +209,22 @@ func CollectSampleAndVerify() {
 				}
 			}
 			stateMutex.Unlock()
+
+			log.Printf("Tree %s - Sample Data %v verified with receipt %v\n", treeId, sample, *receipt)
+		} else {
+			log.Printf("Tree %s - Verification failed: missing receipt or root hash", treeId)
+			continue
 		}
 
-		log.Printf("Tree %s - Sample Data %v verified with receipt %v\n", treeId, sample, *receipt)
-		activeTreeFound = true
-		break
+		// Only mark as complete if verification was successful
+		if verificationSuccessful {
+			activeTreeFound = true
+			break
+		}
 	}
 
 	if !activeTreeFound {
-		log.Println("No active trees available for verification")
+		log.Println("No active trees available for verification or all verification attempts failed")
 	}
 }
 

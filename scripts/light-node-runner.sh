@@ -1,16 +1,16 @@
 #!/bin/bash
-# Light Node Run Script
-# This script starts the ZK prover service and launches the light node client
+# start-light-node.sh
+# This script runs the light node client (assumes it's already built)
 
 # Configuration
-ZK_PROVER_DIR="risc0-merkle-service"
 LIGHT_NODE_DIR="."
 LIGHT_NODE_BIN="light-node"
+ZK_PROVER_PID_FILE="zk_prover_pid.txt"
 
 # Color codes
-GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 RED='\033[0;31m'
+GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 # Log function
@@ -23,61 +23,32 @@ error() {
   exit 1
 }
 
-# Check if zk-prover directory exists
-if [ ! -d "$ZK_PROVER_DIR" ]; then
-  error "ZK prover directory not found. Please run this script from the project root."
+success() {
+  echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] $1${NC}"
+}
+
+# Check if ZK prover PID file exists
+if [ ! -f "$ZK_PROVER_PID_FILE" ]; then
+  error "ZK prover PID file not found. Please run start-risc0-service.sh first."
 fi
 
-# Check if Go is installed
-if ! command -v go &> /dev/null; then
-  error "Go is not installed. Please install Go before running this script."
-fi
-
-# Check if risc0 toolchain is installed
-if ! command -v rzup &> /dev/null; then
-  error "The 'risc0' toolchain could not be found. Install it using: curl -L https://risczero.com/install | bash && rzup install"
-fi
-
-# Start ZK prover service
-log "Starting ZK prover service..."
-cd "$ZK_PROVER_DIR" || error "Failed to navigate to ZK prover directory"
-cargo run > zk-prover.log 2>&1 &
-ZK_PROVER_PID=$!
-cd - > /dev/null || error "Failed to return to original directory"
-
-# Wait for ZK prover to start
-log "Waiting for ZK prover to initialize (5 seconds)..."
-sleep 5
+# Read ZK prover PID
+ZK_PROVER_PID=$(cat "$ZK_PROVER_PID_FILE")
 
 # Check if ZK prover is running
-if ! ps -p $ZK_PROVER_PID > /dev/null; then
-  error "ZK prover failed to start. Check zk-prover.log for details."
+if ! ps -p "$ZK_PROVER_PID" > /dev/null; then
+  error "ZK prover is not running. Please start it using start-risc0-service.sh."
 fi
 
-log "ZK prover started successfully with PID: $ZK_PROVER_PID"
-
-# Build light node
-log "Building light node..."
-cd "$LIGHT_NODE_DIR" || error "Failed to navigate to light node directory"
-go build -o "$LIGHT_NODE_BIN" || error "Failed to build light node"
-log "Light node built successfully"
+# Check if the light node binary exists
+if [ ! -f "$LIGHT_NODE_BIN" ]; then
+  error "Light node binary not found. Please build it first with build-light-node.sh."
+fi
 
 # Run light node
-log "Starting light node..."
-log "Light node logs will appear below:"
+success "Starting light node..."
+success "Light node logs will appear below:"
 echo -e "${GREEN}----------------------------------------${NC}"
 ./"$LIGHT_NODE_BIN"
 
-# Handle exit - cleanup
-cleanup() {
-  log "Shutting down services..."
-  kill $ZK_PROVER_PID 2>/dev/null
-  log "ZK prover service stopped"
-  log "Cleanup complete"
-}
-
-# Set trap to catch script termination
-trap cleanup EXIT
-
-# Exit
 exit 0
