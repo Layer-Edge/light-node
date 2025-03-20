@@ -31,14 +31,17 @@ func Worker(ctx context.Context, wg *sync.WaitGroup, id int) {
 }
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
+	log.Println("Starting light-node...")
+
+	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
+	} else {
+		log.Println(".env loaded successfully")
 	}
 
-	pubKey, err := utils.GetCompressedPublicKey()
+	pubKey, err := utils.GetCompressedPublicKeyFromWallet()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatalf("Error getting compressed public key: %v", err)
 	}
 	log.Printf("Compressed Public Key: %s", pubKey)
 
@@ -46,10 +49,8 @@ func main() {
 	defer cancel()
 
 	var wg sync.WaitGroup
-
 	signalChan := make(chan os.Signal, 1)
-
-	signal.Notify(signalChan, syscall.SIGABRT, syscall.SIGTERM)
+	signal.Notify(signalChan, syscall.SIGABRT, syscall.SIGTERM, syscall.SIGINT)
 
 	wg.Add(1)
 	go Worker(ctx, &wg, 1)
@@ -58,7 +59,6 @@ func main() {
 	fmt.Println("\nReceived interrupt signal. Shutting down gracefully...")
 
 	cancel()
-
 	wg.Wait()
 	fmt.Println("Worker has shut down. Exiting..")
 }
