@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
-func GetCompressedPublicKey() (string, error) {
+func GetCompressedPublicKeyFromWallet() (string, error) {
 	privKey := GetEnv("PRIVATE_KEY", "")
 
 	privateKey, err := crypto.HexToECDSA(privKey)
@@ -19,13 +19,10 @@ func GetCompressedPublicKey() (string, error) {
 		return "", fmt.Errorf("invalid private key: %v", err)
 	}
 
-	// Get the public key
 	publicKey := privateKey.Public().(*ecdsa.PublicKey)
 
-	// Serialize the public key in compressed format
 	compressedPubKey := secp256k1.CompressPubkey(publicKey.X, publicKey.Y)
 
-	// Convert to hex string
 	return hex.EncodeToString(compressedPubKey), nil
 }
 
