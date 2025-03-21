@@ -39,7 +39,7 @@ func main() {
 		log.Println(".env loaded successfully")
 	}
 
-	pubKey, err := utils.GetCompressedPublicKeyFromWallet()
+	pubKey, err := utils.GetCompressedPublicKey()
 	if err != nil {
 		log.Fatalf("Error getting compressed public key: %v", err)
 	}
