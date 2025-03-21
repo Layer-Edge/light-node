@@ -2,3 +2,4 @@
 channel = "stable"
 components = ["rustfmt", "rust-src"]
 profile = "minimal"
+curl -L https://risczero.com/install | bash && rzup install
