@@ -31,14 +31,24 @@ func Worker(ctx context.Context, wg *sync.WaitGroup, id int) {
 }
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	workDir, _ := os.Getwd()
+	fmt.Printf("Current working directory: %s\n", workDir)
 
+	err := godotenv.Load("./.env")
+	if err != nil {
+		altErr := godotenv.Load()
+		if altErr != nil {
+			log.Println("Warning: .env file not found, will use default values if needed")
+		} else {
+			log.Println("Environment loaded from default location")
+		}
+	} else {
+		log.Println("Environment loaded from ./.env")
+	}
+	
 	pubKey, err := utils.GetCompressedPublicKey()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatalf("Error getting compressed public key: %v", err)
 	}
 	log.Printf("Compressed Public Key: %s", pubKey)
 
