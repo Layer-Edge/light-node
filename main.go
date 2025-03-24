@@ -38,7 +38,7 @@ func main() {
 
 	pubKey, err := utils.GetCompressedPublicKey()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal("Error getting public key: Please ensure your private key does not start with '0x'")
 	}
 	log.Printf("Compressed Public Key: %s", pubKey)
 
