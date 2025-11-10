@@ -1,0 +1,3 @@
+[submodule "risc0-merkle-service"]
+	path = risc0-merkle-service
+	url = git@github.com:Layer-Edge/risc0-merkle-service.git
