@@ -89,21 +89,14 @@ func verifyProofs(data []string, proof Proof) (*string, *string, error) {
 	return &resp.Receipt, &resp.Root, nil
 }
 
-func CollectSampleAndVerify() {
-	cosmosQueryClient := clients.CosmosQueryClient{}
-	err := cosmosQueryClient.Init()
+func CollectSampleAndVerify(merkleTreeClient *clients.MerkleTreeClient, clientType string) {
+	treeIds, err := merkleTreeClient.GetAllRoots()
 	if err != nil {
-		log.Fatalf("failed to initialize cosmos query client: %v", err)
-	}
-	defer cosmosQueryClient.Close()
-
-	treeIds, err := cosmosQueryClient.ListMerkleTreeIds()
-	if err != nil {
-		log.Fatalf("failed to fetch tree ids: %v", err)
+		log.Fatalf("failed to fetch %s tree ids: %v", clientType, err)
 	}
 
 	if len(treeIds) == 0 {
-		log.Println("No trees available")
+		log.Printf("No trees available for %s", clientType)
 		return
 	}
 
@@ -112,18 +105,18 @@ func CollectSampleAndVerify() {
 	for _, treeId := range treeIds {
 		// Skip trees that are sleeping
 		stateMutex.Lock()
-		state, exists := treeStates[treeId]
+		state, exists := treeStates[treeId.Hex()]
 		if exists && time.Now().Before(state.SleepUntil) {
-			log.Printf("Tree %s is sleeping until %s, skipping", treeId, state.SleepUntil.Format(time.RFC3339))
+			log.Printf("%s Tree %s is sleeping until %s, skipping", clientType, treeId, state.SleepUntil.Format(time.RFC3339))
 			stateMutex.Unlock()
 			continue
 		}
 		stateMutex.Unlock()
 
 		// Get tree data
-		tree, err := cosmosQueryClient.GetMerkleTreeData(treeId)
+		tree, err := merkleTreeClient.GetTreeInfo(treeId)
 		if err != nil {
-			log.Printf("failed to fetch tree data for %s: %v", treeId, err)
+			log.Printf("failed to fetch %s tree data for %s: %v", clientType, treeId, err)
 			continue
 		}
 
@@ -131,12 +124,12 @@ func CollectSampleAndVerify() {
 		stateMutex.Lock()
 		if !exists {
 			// First time seeing this tree
-			treeStates[treeId] = &TreeState{
-				LastRoot:        tree.Root,
+			treeStates[treeId.Hex()] = &TreeState{
+				LastRoot:        tree.Root.Hex(),
 				ConsecutiveSame: 0,
 			}
 			stateMutex.Unlock()
-		} else if state.LastRoot == tree.Root {
+		} else if state.LastRoot == tree.Root.Hex() {
 			// Root hasn't changed - increment counter and potentially sleep
 			state.ConsecutiveSame++
 
@@ -144,15 +137,15 @@ func CollectSampleAndVerify() {
 				// After 3 consecutive same roots, put the tree to sleep for 5 minutes
 				sleepDuration := 5 * time.Minute
 				state.SleepUntil = time.Now().Add(sleepDuration)
-				log.Printf("Tree %s has had the same root %s for %d checks, putting to sleep for %v",
-					treeId, tree.Root, state.ConsecutiveSame, sleepDuration)
+				log.Printf("%s Tree %s has had the same root %s for %d checks, putting to sleep for %v",
+					clientType, treeId, tree.Root, state.ConsecutiveSame, sleepDuration)
 				stateMutex.Unlock()
 				continue
 			}
 			stateMutex.Unlock()
 		} else {
 			// Root has changed - reset counter
-			state.LastRoot = tree.Root
+			state.LastRoot = tree.Root.Hex()
 			state.ConsecutiveSame = 0
 			stateMutex.Unlock()
 		}
@@ -165,14 +158,14 @@ func CollectSampleAndVerify() {
 
 		proof, err := proveProof(tree.Leaves, sample)
 		if err != nil {
-			log.Printf("failed to prove sample for tree %s: %v", treeId, err)
+			log.Printf("failed to prove sample for %s tree %s: %v", clientType, treeId.Hex(), err)
 			// Continue to the next tree if proving fails
 			continue
 		}
 
 		receipt, rootHash, err := verifyProofs(tree.Leaves, *proof)
 		if err != nil {
-			log.Printf("failed to verify sample for tree %s: %v", treeId, err)
+			log.Printf("failed to verify sample for %s tree %s: %v", clientType, treeId.Hex(), err)
 			// Continue to the next tree if verification fails
 			continue
 		}
@@ -197,13 +190,13 @@ func CollectSampleAndVerify() {
 				// Continue to the next tree if submission fails
 				continue
 			} else {
-				log.Printf("Successfully submitted verified proof for tree %s", treeId)
+				log.Printf("Successfully submitted verified proof for tree %s", treeId.Hex())
 				verificationSuccessful = true
 			}
 
 			// Update the tree state with the verified root
 			stateMutex.Lock()
-			if state, exists := treeStates[treeId]; exists {
+			if state, exists := treeStates[treeId.Hex()]; exists {
 				if state.LastRoot != *rootHash {
 					state.LastRoot = *rootHash
 					state.ConsecutiveSame = 0
@@ -211,9 +204,9 @@ func CollectSampleAndVerify() {
 			}
 			stateMutex.Unlock()
 
-			log.Printf("Tree %s - Sample Data %v verified with receipt %v\n", treeId, sample, *receipt)
+			log.Printf("%s Tree %s - Sample Data %v verified with receipt %v\n", clientType, treeId.Hex(), sample, *receipt)
 		} else {
-			log.Printf("Tree %s - Verification failed: missing receipt or root hash", treeId)
+			log.Printf("%s Tree %s - Verification failed: missing receipt or root hash", clientType, treeId.Hex())
 			continue
 		}
 
@@ -225,7 +218,7 @@ func CollectSampleAndVerify() {
 	}
 
 	if !activeTreeFound {
-		log.Println("No active trees available for verification or all verification attempts failed")
+		log.Printf("No active trees available for %s verification or all verification attempts failed", clientType)
 	}
 }
 
