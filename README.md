@@ -29,9 +29,10 @@ Key features:
 
 Configure environment variables or in .env file
 ```env
-GRPC_URL=grpc.testnet.layeredge.io:9090
-CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
-ZK_PROVER_URL=http://127.0.0.1:3001
+RPC_URL=https://rpc.layeredge.io
+MERKLE_TREE_STORAGE_CONTRACT_ADDRESS=0x57bEBD1b51dF9F221F763a708591c1E72D2379D6
+SUPER_PROOF_CONTRACT_ADDRESS=0x7f9EBd5DA0829bdB6CDFF45BbA0D68c0cae39364
+ZK_PROVER_URL=http://127.0.0.1:3000
 API_REQUEST_TIMEOUT=100
 POINTS_API=http://127.0.0.1:8080
 PRIVATE_KEY='cli-node-private-key'
